@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PESERTA
+}
+
+enum TeamStatus {
+  DRAFT
+  SUBMITTED
+  REVISION
+  VERIFIED
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String
+  email     String   @unique
+  password  String
+  role      Role     @default(PESERTA)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  team          Team?
+  adminMessages AdminMessage[] @relation("AdminSender")
+
+  @@map("users")
+}
+
+model Team {
+  id               Int        @id @default(autoincrement())
+  userId           Int        @unique @map("user_id")
+  teamName         String     @map("team_name")
+  competition      String     // "uiux" | "webdev"
+  githubLink       String?    @map("github_link")
+  figmaLink        String?    @map("figma_link")
+  driveLink        String?    @map("drive_link")
+  paymentProofUrl  String?    @map("payment_proof_url")
+  status           TeamStatus @default(DRAFT)
+  submittedAt      DateTime?  @map("submitted_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+  updatedAt        DateTime   @updatedAt @map("updated_at")
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members TeamMember[]
+  messages AdminMessage[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id         Int     @id @default(autoincrement())
+  teamId     Int     @map("team_id")
+  name       String
+  email      String
+  phone      String
+  university String
+  isLeader   Boolean @default(false) @map("is_leader")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
+model AdminMessage {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  adminId   Int      @map("admin_id")
+  message   String   @db.Text
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team  Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  admin User @relation("AdminSender", fields: [adminId], references: [id])
+
+  @@map("admin_messages")
+}
+
+model CompetitionSetting {
+  id            Int      @id @default(autoincrement())
+  competitionId String   @unique @map("competition_id") // "uiux" | "webdev"
+  label         String
+  maxMembers    Int      @map("max_members")
+  deadline      DateTime
+  isOpen        Boolean  @default(true) @map("is_open")
+
+  @@map("competition_settings")
+}
